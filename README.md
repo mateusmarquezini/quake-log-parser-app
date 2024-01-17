@@ -17,7 +17,7 @@ make run-app
 - Using native Go command:
 
  ```bash
-go run ./app
+go run ./cmd
 ```
 
 #### Running unit tests
