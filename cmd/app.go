@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/mateusmarquezini/quake-log-parser-app/domain"
@@ -25,10 +26,12 @@ func main() {
 	}
 
 	scanner := bufio.NewScanner(file)
+
 	var match = &domain.Match{}
-	var matches []domain.Match
+	var matches []map[string]any
 	var killEventsInMatch []domain.KillDetails
 	var matchID int
+	response := make(map[string]any)
 
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), helper.INIT_GAME) {
@@ -42,6 +45,7 @@ func main() {
 		}
 
 		matchKillDetails := domain.ParseKillDetails(scanner)
+
 		if matchKillDetails.Cause != "" {
 			killEventsInMatch = append(killEventsInMatch, matchKillDetails)
 		}
@@ -53,20 +57,24 @@ func main() {
 			} else {
 				for _, event := range killEventsInMatch {
 
-					match.KillsByMeans[event.Cause]++
+					incrementKillsByCause(match, event.Cause)
 
 					addPlayerIfNotExists(match, event.KillerName)
 					addPlayerIfNotExists(match, event.VictimName)
 
-					if isAValidPlayer(event) && !isTheSamePlayer(event) {
-						match.Kills[event.KillerName]++
-					} else if victimHasPositiveKills(*match, event.VictimName) && !isTheSamePlayer(event) {
-						match.Kills[event.VictimName]--
+					if !isTheSamePlayer(event) {
+						if isAValidPlayer(event) {
+							incrementKillCount(match, event.KillerName)
+						} else {
+							decrementKillCount(match, event.VictimName)
+						}
 					}
 				}
 
 				match.TotalKills = len(killEventsInMatch)
-				matches = append(matches, *match)
+				response[match.MatchID] = match
+				matches = append(matches, response)
+				response = make(map[string]any)
 				killEventsInMatch = nil
 			}
 		}
@@ -74,7 +82,7 @@ func main() {
 
 	jsonData, err := json.MarshalIndent(matches, "", "  ")
 	if err != nil {
-		println(err.Error())
+		log.Fatalf("Error marshaling matches to JSON: %v", err)
 		return
 	}
 
@@ -83,9 +91,24 @@ func main() {
 	defer file.Close()
 }
 
+func incrementKillCount(match *domain.Match, playerName string) {
+	match.Kills[playerName]++
+}
+
+func decrementKillCount(match *domain.Match, playerName string) {
+	if match.Kills[playerName] > 0 {
+		match.Kills[playerName]--
+	}
+}
+
+func incrementKillsByCause(match *domain.Match, cause string) {
+	match.KillsByMeans[cause]++
+}
+
 func addPlayerIfNotExists(match *domain.Match, playerName string) {
 	if playerName != worldID && !helper.ContainsPlayer(match.Players, playerName) {
 		match.Players = append(match.Players, playerName)
+		addPlayerToKillsRanking(match, playerName)
 	}
 }
 
@@ -93,13 +116,19 @@ func isAValidPlayer(kill domain.KillDetails) bool {
 	return kill.KillerName != worldID
 }
 
+func addPlayerToKillsRanking(match *domain.Match, playerName string) {
+	if _, exists := match.Kills[playerName]; !exists {
+		match.Kills[playerName] = 0
+	}
+}
+
 func isTheSamePlayer(kill domain.KillDetails) bool {
 	return kill.KillerName == kill.VictimName
 }
 
-func victimHasPositiveKills(match domain.Match, victimName string) bool {
-	if kills, ok := match.Kills[victimName]; ok {
-		return kills > 0
-	}
-	return false
-}
+// func victimHasPositiveKills(match domain.Match, victimName string) bool {
+// 	if kills, ok := match.Kills[victimName]; ok {
+// 		return kills > 0
+// 	}
+// 	return false
+// }
