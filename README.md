@@ -19,3 +19,9 @@ make run-app
  ```bash
 make build-app
 ```
+
+You can run the binary app after building it by running the following command:
+
+ ```bash
+./bin
+```
