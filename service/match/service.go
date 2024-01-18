@@ -27,7 +27,7 @@ func NewMatchService() *MatchService {
 }
 
 func (s *MatchService) ProcessLine(scanner *bufio.Scanner) {
-	if strings.Contains(scanner.Text(), initGame) {
+	if hasMatchStarted(scanner) {
 		s.startNewMatch()
 	}
 
@@ -59,6 +59,7 @@ func (s *MatchService) endMatch() {
 	} else {
 		for _, event := range s.killEventsInMatch {
 			incrementKillsByCause(s.match, event.Cause)
+
 			addPlayerIfNotExists(s.match, event.KillerName)
 			addPlayerIfNotExists(s.match, event.VictimName)
 
@@ -137,7 +138,6 @@ func parseKillDetails(scanner *bufio.Scanner) domain.KillDetails {
 	return domain.KillDetails{}
 }
 
-// ContainsPlayer checks if a player is in a list of players
 func containsPlayer(players []string, name string) bool {
 	for _, player := range players {
 		if player == name {
@@ -147,8 +147,11 @@ func containsPlayer(players []string, name string) bool {
 	return false
 }
 
-// HasMatchEnded checks if a match has ended
 func hasMatchEnded(scanner *bufio.Scanner) bool {
 	return strings.Contains(scanner.Text(), endMatchLine1) ||
 		strings.Contains(scanner.Text(), endMatchLine2)
+}
+
+func hasMatchStarted(scanner *bufio.Scanner) bool {
+	return strings.Contains(scanner.Text(), initGame)
 }
