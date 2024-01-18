@@ -1,6 +1,6 @@
 
 run-app:
-	go run ./api
+	go run ./cmd
 
-run-test:
-	go test -v ./...
+build-app:
+	go build -o ./bin ./cmd
